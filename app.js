@@ -7,9 +7,9 @@ const DESK_REF='https://api.github.com/repos/idk02111/desk-web/git/ref/heads/dat
 // Latest data commit: ETag-revalidated (304s don't count against GitHub's 60/h limit); files are then
 // read from the immutable commit URL (fresh in ~3s). If the API is rate-limited, fall back to the
 // branch URL (raw CDN, up to ~5 min stale).
-let sha='data';
+let dataSha='data';
 async function refresh(){try{const r=await fetch(DESK_REF,{cache:'no-cache'});
-  if(r.ok){sha=(await r.json()).object.sha}else sha='data';}catch(e){sha='data'}}
+  if(r.ok){dataSha=(await r.json()).object.sha}else dataSha='data';}catch(e){dataSha='data'}}
 document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{
   document.querySelectorAll('nav button,.tab').forEach(e=>e.classList.remove('on'));
   b.classList.add('on');$('#'+b.dataset.t).classList.add('on');});
@@ -25,7 +25,7 @@ async function init(){
   tick();setInterval(tick,15000);
 }
 async function load(name){
-  const r=await fetch(DESK_DATA_BASE+sha+'/'+dir+name,{cache:sha==='data'?'no-store':'default'});
+  const r=await fetch(DESK_DATA_BASE+dataSha+'/'+dir+name,{cache:dataSha==='data'?'no-store':'default'});
   if(!r.ok)throw new Error(r.status);
   const raw=new Uint8Array(await r.arrayBuffer());
   const pt=await crypto.subtle.decrypt({name:'AES-GCM',iv:raw.slice(0,12)},key,raw.slice(12));
