@@ -2,7 +2,14 @@
 // private link, which browsers never send to any server. This repo contains no key and no path.
 const $=s=>document.querySelector(s);
 // Encrypted data lives on the 'data' branch (not the Pages branch), read through raw.githubusercontent.com.
-const DESK_DATA_BASE='https://raw.githubusercontent.com/idk02111/desk-web/data/';
+const DESK_DATA_BASE='https://raw.githubusercontent.com/idk02111/desk-web/';
+const DESK_REF='https://api.github.com/repos/idk02111/desk-web/git/ref/heads/data';
+// Latest data commit: ETag-revalidated (304s don't count against GitHub's 60/h limit); files are then
+// read from the immutable commit URL (fresh in ~3s). If the API is rate-limited, fall back to the
+// branch URL (raw CDN, up to ~5 min stale).
+let sha='data';
+async function refresh(){try{const r=await fetch(DESK_REF,{cache:'no-cache'});
+  if(r.ok){sha=(await r.json()).object.sha}else sha='data';}catch(e){sha='data'}}
 document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{
   document.querySelectorAll('nav button,.tab').forEach(e=>e.classList.remove('on'));
   b.classList.add('on');$('#'+b.dataset.t).classList.add('on');});
@@ -18,7 +25,7 @@ async function init(){
   tick();setInterval(tick,15000);
 }
 async function load(name){
-  const r=await fetch(DESK_DATA_BASE+dir+name+'?t='+Date.now(),{cache:'no-store'});
+  const r=await fetch(DESK_DATA_BASE+sha+'/'+dir+name,{cache:sha==='data'?'no-store':'default'});
   if(!r.ok)throw new Error(r.status);
   const raw=new Uint8Array(await r.arrayBuffer());
   const pt=await crypto.subtle.decrypt({name:'AES-GCM',iv:raw.slice(0,12)},key,raw.slice(12));
@@ -26,6 +33,7 @@ async function load(name){
 }
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 async function tick(){
+  await refresh();
   try{
     const st=await load('state.json');$('#locked')?.remove();window.deskStatus='ok';window.deskState=st;
     $('#mode').textContent=st.mode||'—';$('#age').textContent='updated '+new Date(st.ts).toLocaleTimeString();
