@@ -1,3 +1,10 @@
-// Offline shell cache only. No push in plan B (alerts go to Discord).
-self.addEventListener('install',e=>e.waitUntil(caches.open('desk-v1').then(c=>c.addAll(['./','index.html','app.css','app.js','chart.js','manifest.json']))));
-self.addEventListener('fetch',e=>{if(e.request.url.includes('/d/'))return;e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request)))});
+// Minimal offline shell. No push in plan B (alerts go to Discord). Data (other origins) is never cached here.
+const V = 'desk-v2', SHELL = ['./', 'index.html', 'app.css', 'app.js', 'chart.js', 'manifest.json', 'icons/apple-touch-icon.png'];
+self.addEventListener('install', e => { self.skipWaiting(); e.waitUntil(caches.open(V).then(c => c.addAll(SHELL))); });
+self.addEventListener('activate', e => e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== V).map(k => caches.delete(k)))).then(() => self.clients.claim())));
+self.addEventListener('fetch', e => {
+  const u = new URL(e.request.url);
+  if (u.origin !== location.origin || e.request.method !== 'GET') return;
+  e.respondWith(fetch(e.request).then(r => { const cp = r.clone(); caches.open(V).then(c => c.put(e.request, cp)); return r; })
+    .catch(() => caches.match(e.request, {ignoreSearch: true})));
+});

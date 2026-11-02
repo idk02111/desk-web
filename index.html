@@ -1,17 +1,33 @@
 <!doctype html>
 <html lang="en"><head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="robots" content="noindex,nofollow"><meta name="referrer" content="no-referrer">
-<meta name="apple-mobile-web-app-capable" content="yes"><title>Desk</title>
-<link rel="manifest" href="manifest.json"><link rel="stylesheet" href="app.css">
+<meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Grok Bot"><meta name="theme-color" content="#000000">
+<title>Grok Bot</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="stylesheet" href="app.css">
 </head><body>
-<header><h1>Desk</h1><span id="mode" class="pill">—</span><span id="age" class="muted"></span></header>
 <main>
- <section id="home" class="tab on"><div id="locked" class="card">Locked. Open your private link (it ends in <code>#…</code>) to load data.</div><div id="cards"></div></section>
- <section id="agents" class="tab"><div id="agentcards"></div></section>
- <section id="activity" class="tab"><ul id="feed"></ul></section>
- <section id="account" class="tab"><div class="card"><b>Read-only.</b> Settings, pause and PAPER/LIVE changes go through chat with Grok Bot; every change is written to the change log.</div><div id="acct" class="card"></div><table id="settings"></table></section>
+  <section id="v-home" class="view on"></section>
+  <section id="v-agents" class="view"></section>
+  <section id="v-activity" class="view"></section>
+  <section id="v-account" class="view"></section>
 </main>
-<nav><button data-t="home" class="on">Home</button><button data-t="agents">Agents</button><button data-t="activity">Activity</button><button data-t="account">Account</button></nav>
-<script src="chart.js"></script><script src="app.js"></script>
+<div id="o-coin" class="overlay"></div>
+<div id="o-auditor" class="overlay"></div>
+<div id="o-search" class="overlay"></div>
+<nav class="tabbar" id="tabbar">
+  <button data-tab="home" class="on" aria-label="Home"><svg class="icon" viewBox="0 0 24 24"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>Home</button>
+  <button data-tab="agents" aria-label="Agents"><svg class="icon" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="4"/><path d="M8 10v1M16 10v1M9 15h6"/></svg>Agents</button>
+  <button data-tab="activity" aria-label="Activity"><svg class="icon" viewBox="0 0 24 24"><path d="M3 12h4l3 7 4-14 3 7h4"/></svg>Activity</button>
+  <button data-tab="account" aria-label="Account"><svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>Account</button>
+</nav>
+<div class="toast" id="toast"></div>
+<script src="chart.js"></script>
+<script src="app.js"></script>
 </body></html>
