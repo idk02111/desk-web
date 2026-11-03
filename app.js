@@ -276,11 +276,22 @@ function bigChart(p) {
     <text x="14" y="${h - 2}" class="lt">${tlab(g.t0)}</text><text x="${w - 14}" y="${h - 2}" class="lt" text-anchor="end">${p.status === 'open' ? 'ahora' : 'salida'} ${tlab(g.t1)}</text>
     <line class="xh" x1="-10" x2="-10" y1="10" y2="${h - 12}"/></svg>`;
 }
+function tagText(p) {
+  const t = p.tag || '';
+  if (t === 'scanner') return 'escáner';
+  if (t === 'both') return p.book === 'copybot' ? 'wallet: ' + (p.source || '') + ' + escáner' : 'escáner + wallets';
+  if (t.startsWith('wallet:')) return 'wallet: ' + t.slice(7);
+  return p.source || t;
+}
+function whyBox(p) {
+  if (!p.why || !p.why.length) return '';
+  return `<div class="pp-why"><div class="sec">Por qué la elegí${has(p.score) ? ` · puntuación ${Math.round(p.score)}/100` : ''}</div><ul>${p.why.slice(0, 3).map(w => `<li>${esc(w)}</li>`).join('')}</ul></div>`;
+}
 function posPanel(p) {
   const ch = p.chart || {}, open = p.status === 'open', col = has(p.pnlUsd) ? (p.pnlUsd >= 0 ? 'green' : 'red') : '';
   return `<div class="ppanel">
     <div class="pp-h"><span class="pp-pnl ${col}">${money(p.pnlUsd, true)} · ${pct(p.pnlPct, 1)}</span>${trendBadge(ch.trend, open)}</div>
-    ${bigChart(p)}
+    ${whyBox(p)}${bigChart(p)}
     <div class="pp-read" id="rd-${Math.abs(hashS(posKey(p)))}">Toca el gráfico para ver el precio</div>
     <div class="pp-l"><span>entrada <b>${px(p.entry)}</b></span><span>${open ? 'ahora' : 'salida'} <b class="${col}">${px(p.price)}</b></span>
       ${has(ch.stop) ? `<span class="red">stop ${px(ch.stop)}</span>` : ''}${has(ch.trail) ? `<span class="orange">trail ${px(ch.trail)}</span>` : ''}</div>
@@ -294,7 +305,7 @@ function bookRow(p) {
   const prices = `${px(p.entry)} → ${px(p.price)}${p.status === 'open' ? ' now' : ''}`;
   const k = posKey(p), on = S.posK === k;
   const inner = `<span class="ic" style="background:${ic[0]};color:${ic[1]}">${ic[2]}</span>
-    <span class="mid"><div class="t">${esc(p.name)} <span class="src">${esc(p.source)}</span></div><div class="s">${esc(prices)}</div><div class="s">${esc(when)}${has(p.sizeUsd) ? ' · ' + money(p.sizeUsd) : ''}</div></span>
+    <span class="mid"><div class="t">${esc(p.name)} <span class="src tag-${esc((p.tag || '').split(':')[0])}">${esc(tagText(p))}</span></div><div class="s">${esc(prices)}</div><div class="s">${esc(when)}${has(p.sizeUsd) ? ' · ' + money(p.sizeUsd) : ''}</div></span>
     ${sparkSVG(p)}<span class="v ${col}"><span class="v1">${money(p.pnlUsd, true)}</span><span class="v2 ${col}">${pct(p.pnlPct, 1)}</span></span>`;
   return `<div class="prow${on ? ' on' : ''}"><div class="row" role="button" tabindex="0" data-act="pos" data-k="${esc(k)}">${inner}</div>${on ? posPanel(p) : ''}</div>`;
 }
