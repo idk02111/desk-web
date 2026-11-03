@@ -117,6 +117,7 @@ document.addEventListener('click', e => {
   else if (t.dataset.act === 'search') openSearch();
   else if (t.dataset.act === 'range') { S.range = t.dataset.r; renderHome(); }
   else if (t.dataset.act === 'invite') invite();
+  else if (t.dataset.act === 'bookf') { S.bookF = t.dataset.f; renderBook(); }
 });
 
 // ---------- polling (no SSE in plan B): every ~15s; keep the last good numbers on screen
@@ -179,9 +180,12 @@ function renderHome() {
   if (!v.dataset.built || v.dataset.ex !== String(!!(S.state && S.state.example))) {
     v.innerHTML = navbarHome() + errRow() + `
       <section class="balance"><div class="bal-row"><span class="odo" id="odo"></span><span id="paperHome"></span></div>
-        <div class="today" id="today"></div></section>
+        <div class="today" id="today"></div><div class="allbooks" id="allBooks"></div></section>
       <div class="chartbox"><canvas id="homeChart"></canvas></div>
       <div class="ranges" id="ranges">${['LIVE', '1H', '4H', '1D', '1W', 'ALL'].map(r => `<button data-act="range" data-r="${r}">${r}</button>`).join('')}</div>
+      <div class="sect"><h2 id="bookHd">Paper positions</h2></div>
+      <div class="ranges bookf" id="bookF">${['all', 'open', 'closed'].map(f => `<button data-act="bookf" data-f="${f}">${f[0].toUpperCase() + f.slice(1)}</button>`).join('')}</div>
+      <div class="list" id="bookList"></div>
       <div class="sect"><h2 id="agentsHd">Agents</h2></div>
       <div class="carousel" id="carousel"></div>
       <div class="sect"><h2>Activity</h2><button class="link" data-tab="activity">See all</button></div>
@@ -206,6 +210,7 @@ function renderHome() {
   $('#today').innerHTML = `<span class="${chg >= 0 ? 'green' : 'red'}">${pct(chg)} today</span>` +
     (has(start) && start ? `<span class="pill mult">${(st.balance / start).toFixed(2)}×</span>` : '');
   drawHomeChart();
+  renderBook();
   const A = st.agents;
   $('#agentsHd').textContent = `Agents · ${st.running} running`;
   $('#carousel').innerHTML = ['scanner', 'auditor', 'analyst', 'executor', 'risk'].map(k => agentCard(k, A[k])).join('');
@@ -213,6 +218,34 @@ function renderHome() {
   animateExec();
   const items = (S.activity && S.activity.items) || [];
   $('#homeAct').innerHTML = items.length ? items.slice(0, 5).map(actRow).join('') : `<div class="empty">Nothing yet tonight</div>`;
+}
+// ---------- ALL PAPER BOOKS: the desk's positions + copybot's (merged by the desk publisher; fake money only)
+const px = v => !has(v) ? '—' : v === 0 ? '$0' : v < 0.0001 ? '$' + v.toExponential(2) : v < 1 ? '$' + v.toPrecision(4) : '$' + v.toLocaleString('en-US', {maximumFractionDigits: 4});
+const ct = iso => { if (!iso) return ''; try { return new Date(iso).toLocaleString('en-US', {timeZone: 'America/Chicago', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'}) + ' CT'; } catch (e) { return iso; } };
+const WHY = {stop: 'stop-loss', trail: 'trailing stop', timeout: 'timeout', trader: 'trader sold', pulled: 'pulled', tp: 'take profit'};
+function bookRow(p) {
+  const up = has(p.pnlUsd) && p.pnlUsd >= 0, col = !has(p.pnlUsd) ? '' : up ? 'green' : 'red';
+  const ic = p.status === 'open' ? ['var(--blue)', '#fff', '•'] : up ? ['var(--green)', '#000', '$'] : ['var(--red)', '#000', '↓'];
+  const when = p.status === 'open' ? 'open since ' + ct(p.openedAt) : (WHY[p.reason] || p.reason || 'closed') + ' · ' + ct(p.closedAt);
+  const prices = `${px(p.entry)} → ${px(p.price)}${p.status === 'open' ? ' now' : ''}`;
+  const inner = `<span class="ic" style="background:${ic[0]};color:${ic[1]}">${ic[2]}</span>
+    <span class="mid"><div class="t">${esc(p.name)} <span class="src">${esc(p.source)}</span></div><div class="s">${esc(prices)}</div><div class="s">${esc(when)}${has(p.sizeUsd) ? ' · ' + money(p.sizeUsd) : ''}</div></span>
+    <span class="v ${col}"><span class="v1">${money(p.pnlUsd, true)}</span><span class="v2 ${col}">${pct(p.pnlPct, 1)}</span></span>`;
+  return p.link ? `<a class="row" href="${esc(p.link)}" target="_blank" rel="noopener noreferrer">${inner}</a>` : `<div class="row">${inner}</div>`;
+}
+function renderBook() {
+  const b = S.state && S.state.book, el = $('#bookList'), top = $('#allBooks');
+  if (!el || !top) return;
+  if (!b) { top.innerHTML = ''; el.innerHTML = `<div class="empty">No paper book in this data yet</div>`; return; }
+  const t = b.total, bk = b.books, f = S.bookF || 'all';
+  const part = k => bk[k] ? `${esc(bk[k].name)} ${money(bk[k].balance)} <span class="${bk[k].pnl >= 0 ? 'green' : 'red'}">(${money(bk[k].pnl, true)})</span>${bk[k].stale ? ' <span class="orange">stale</span>' : ''}` : '';
+  top.innerHTML = `<div class="ab-t">All paper books <b>${money(t.balance)}</b> <span class="${t.pnl >= 0 ? 'green' : 'red'}">${money(t.pnl, true)} · ${pct(t.pnlPct)}</span></div>
+    <div class="ab-s">${['desk', 'copybot'].map(part).filter(Boolean).join(' · ')} · start ${money(t.start)}</div>`;
+  $$('#bookF button').forEach(x => x.classList.toggle('on', x.dataset.f === f));
+  const rows = (b.positions || []).filter(p => f === 'all' || p.status === f);
+  const nOpen = (b.positions || []).filter(p => p.status === 'open').length;
+  $('#bookHd').textContent = `Paper positions · ${nOpen} open · ${(b.positions || []).length - nOpen} closed`;
+  el.innerHTML = rows.length ? rows.map(bookRow).join('') : `<div class="empty">No ${f === 'all' ? '' : f + ' '}positions</div>`;
 }
 function drawHomeChart() {
   const st = S.state, ch = S.chart || {balance: [], marks: []};
