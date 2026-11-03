@@ -118,6 +118,7 @@ document.addEventListener('click', e => {
   else if (t.dataset.act === 'range') { S.range = t.dataset.r; renderHome(); }
   else if (t.dataset.act === 'invite') invite();
   else if (t.dataset.act === 'bookf') { S.bookF = t.dataset.f; renderBook(); }
+  else if (t.dataset.act === 'pos') { S.posK = S.posK === t.dataset.k ? null : t.dataset.k; renderBook(); }
 });
 
 // ---------- polling (no SSE in plan B): every ~15s; keep the last good numbers on screen
@@ -223,16 +224,95 @@ function renderHome() {
 const px = v => !has(v) ? '—' : v === 0 ? '$0' : v < 0.0001 ? '$' + v.toExponential(2) : v < 1 ? '$' + v.toPrecision(4) : '$' + v.toLocaleString('en-US', {maximumFractionDigits: 4});
 const ct = iso => { if (!iso) return ''; try { return new Date(iso).toLocaleString('en-US', {timeZone: 'America/Chicago', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'}) + ' CT'; } catch (e) { return iso; } };
 const WHY = {stop: 'stop-loss', trail: 'trailing stop', timeout: 'timeout', trader: 'trader sold', pulled: 'pulled', tp: 'take profit'};
+const posKey = p => `${p.book}:${p.id}:${p.mint}`;
+// ---------- position price charts (inline SVG, no libs; data comes pre-fetched in the sealed state)
+function chartGeom(ch, entry, w, h, pad, withLevels) {
+  const pts = ch.pts || [];
+  const t0 = pts[0][0], t1 = Math.max(pts[pts.length - 1][0], t0 + 1);
+  const vals = pts.map(q => q[1]).concat([entry]);
+  if (withLevels) [ch.stop, ch.trail].forEach(v => { if (has(v) && v > 0) vals.push(v); });
+  let lo = Math.min(...vals), hi = Math.max(...vals);
+  if (hi - lo < hi * 1e-6) { hi *= 1.01; lo *= 0.99; }
+  const X = t => pad + (t - t0) / (t1 - t0) * (w - 2 * pad), Y = v => pad + (hi - v) / (hi - lo) * (h - 2 * pad);
+  return {pts, X, Y, t0, t1, lo, hi};
+}
+function sparkSVG(p) {
+  const ch = p.chart;
+  if (!ch || !ch.pts || ch.pts.length < 2 || !has(p.entry)) return '<span class="spark"></span>';
+  const w = 64, h = 26, g = chartGeom(ch, p.entry, w, h, 2, false), ey = g.Y(p.entry).toFixed(1);
+  const line = g.pts.map(q => g.X(q[0]).toFixed(1) + ',' + g.Y(q[1]).toFixed(1)).join(' ');
+  const id = 'sp' + Math.abs(hashS(posKey(p)));
+  return `<svg class="spark" viewBox="0 0 ${w} ${h}" aria-hidden="true"><defs>
+    <clipPath id="${id}a"><rect x="0" y="0" width="${w}" height="${ey}"/></clipPath><clipPath id="${id}b"><rect x="0" y="${ey}" width="${w}" height="${h}"/></clipPath></defs>
+    <line x1="0" x2="${w}" y1="${ey}" y2="${ey}" class="ent"/>
+    <polyline points="${line}" class="ln up" clip-path="url(#${id}a)"/><polyline points="${line}" class="ln dn" clip-path="url(#${id}b)"/></svg>`;
+}
+function hashS(s) { let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0; return h; }
+function trendBadge(tr, open) {
+  if (!tr) return '';
+  const cls = tr.dir === 'up' ? 'green' : tr.dir === 'down' ? 'red' : 'sec';
+  const word = tr.dir === 'up' ? '▲ subiendo' : tr.dir === 'down' ? '▼ bajando' : '■ estable';
+  return `<span class="trend ${cls}">${word} ${pct(tr.pct, 1)} <small>${tr.mins} min${open ? '' : ' antes del cierre'}</small></span>`;
+}
+function bigChart(p) {
+  const ch = p.chart;
+  if (!ch || !ch.pts || ch.pts.length < 2) return '<div class="empty">Sin historial de precio todavía</div>';
+  const w = 340, h = 190, g = chartGeom(ch, p.entry, w, h, 14, true), ey = g.Y(p.entry);
+  const line = g.pts.map(q => g.X(q[0]).toFixed(1) + ',' + g.Y(q[1]).toFixed(1)).join(' ');
+  const id = 'bc' + Math.abs(hashS(posKey(p)));
+  const last = g.pts[g.pts.length - 1], up = last[1] >= p.entry;
+  const lvl = (v, cls, lab) => has(v) && v > 0 ? `<line x1="14" x2="${w - 14}" y1="${g.Y(v).toFixed(1)}" y2="${g.Y(v).toFixed(1)}" class="lv ${cls}"/>
+    <text x="${w - 16}" y="${(g.Y(v) - 3).toFixed(1)}" class="lt ${cls}" text-anchor="end">${lab} ${px(v)}</text>` : '';
+  const tlab = t => new Date(t * 1000).toLocaleTimeString('en-US', {hour: 'numeric', minute: '2-digit', timeZone: 'America/Chicago'});
+  return `<svg class="bigc" viewBox="0 0 ${w} ${h}" data-k="${esc(posKey(p))}"><defs>
+      <clipPath id="${id}a"><rect x="0" y="0" width="${w}" height="${ey.toFixed(1)}"/></clipPath>
+      <clipPath id="${id}b"><rect x="0" y="${ey.toFixed(1)}" width="${w}" height="${h}"/></clipPath></defs>
+    ${lvl(ch.stop, 'stp', 'stop')}${lvl(ch.trail, 'trl', 'trail')}
+    <line x1="14" x2="${w - 14}" y1="${ey.toFixed(1)}" y2="${ey.toFixed(1)}" class="lv ent"/>
+    <text x="16" y="${(ey - 4).toFixed(1)}" class="lt">entrada ${px(p.entry)}</text>
+    <polyline points="${line}" class="ln up" clip-path="url(#${id}a)"/><polyline points="${line}" class="ln dn" clip-path="url(#${id}b)"/>
+    <circle cx="${g.X(g.pts[0][0]).toFixed(1)}" cy="${ey.toFixed(1)}" r="4" class="mk ent"/>
+    <circle cx="${g.X(last[0]).toFixed(1)}" cy="${g.Y(last[1]).toFixed(1)}" r="5" class="mk ${up ? 'up' : 'dn'}"/>
+    <text x="14" y="${h - 2}" class="lt">${tlab(g.t0)}</text><text x="${w - 14}" y="${h - 2}" class="lt" text-anchor="end">${p.status === 'open' ? 'ahora' : 'salida'} ${tlab(g.t1)}</text>
+    <line class="xh" x1="-10" x2="-10" y1="10" y2="${h - 12}"/></svg>`;
+}
+function posPanel(p) {
+  const ch = p.chart || {}, open = p.status === 'open', col = has(p.pnlUsd) ? (p.pnlUsd >= 0 ? 'green' : 'red') : '';
+  return `<div class="ppanel">
+    <div class="pp-h"><span class="pp-pnl ${col}">${money(p.pnlUsd, true)} · ${pct(p.pnlPct, 1)}</span>${trendBadge(ch.trend, open)}</div>
+    ${bigChart(p)}
+    <div class="pp-read" id="rd-${Math.abs(hashS(posKey(p)))}">Toca el gráfico para ver el precio</div>
+    <div class="pp-l"><span>entrada <b>${px(p.entry)}</b></span><span>${open ? 'ahora' : 'salida'} <b class="${col}">${px(p.price)}</b></span>
+      ${has(ch.stop) ? `<span class="red">stop ${px(ch.stop)}</span>` : ''}${has(ch.trail) ? `<span class="orange">trail ${px(ch.trail)}</span>` : ''}</div>
+    <div class="pp-f"><span class="sec">${ch.src === 'gecko' ? 'velas GeckoTerminal + precios del bot' : 'precios del bot'} · PAPER</span>
+      ${p.link ? `<a class="pp-btn" href="${esc(p.link)}" target="_blank" rel="noopener noreferrer">Abrir en FOMO</a>` : ''}</div></div>`;
+}
 function bookRow(p) {
   const up = has(p.pnlUsd) && p.pnlUsd >= 0, col = !has(p.pnlUsd) ? '' : up ? 'green' : 'red';
   const ic = p.status === 'open' ? ['var(--blue)', '#fff', '•'] : up ? ['var(--green)', '#000', '$'] : ['var(--red)', '#000', '↓'];
   const when = p.status === 'open' ? 'open since ' + ct(p.openedAt) : (WHY[p.reason] || p.reason || 'closed') + ' · ' + ct(p.closedAt);
   const prices = `${px(p.entry)} → ${px(p.price)}${p.status === 'open' ? ' now' : ''}`;
+  const k = posKey(p), on = S.posK === k;
   const inner = `<span class="ic" style="background:${ic[0]};color:${ic[1]}">${ic[2]}</span>
     <span class="mid"><div class="t">${esc(p.name)} <span class="src">${esc(p.source)}</span></div><div class="s">${esc(prices)}</div><div class="s">${esc(when)}${has(p.sizeUsd) ? ' · ' + money(p.sizeUsd) : ''}</div></span>
-    <span class="v ${col}"><span class="v1">${money(p.pnlUsd, true)}</span><span class="v2 ${col}">${pct(p.pnlPct, 1)}</span></span>`;
-  return p.link ? `<a class="row" href="${esc(p.link)}" target="_blank" rel="noopener noreferrer">${inner}</a>` : `<div class="row">${inner}</div>`;
+    ${sparkSVG(p)}<span class="v ${col}"><span class="v1">${money(p.pnlUsd, true)}</span><span class="v2 ${col}">${pct(p.pnlPct, 1)}</span></span>`;
+  return `<div class="prow${on ? ' on' : ''}"><div class="row" role="button" tabindex="0" data-act="pos" data-k="${esc(k)}">${inner}</div>${on ? posPanel(p) : ''}</div>`;
 }
+function chartRead(svg, clientX) {
+  const b = S.state && S.state.book, p = b && (b.positions || []).find(q => posKey(q) === svg.dataset.k);
+  if (!p || !p.chart) return;
+  const r = svg.getBoundingClientRect(), w = 340, x = (clientX - r.left) / r.width * w;
+  const g = chartGeom(p.chart, p.entry, w, 190, 14, true);
+  let best = g.pts[0];
+  g.pts.forEach(q => { if (Math.abs(g.X(q[0]) - x) < Math.abs(g.X(best[0]) - x)) best = q; });
+  const xh = svg.querySelector('.xh'); xh.setAttribute('x1', g.X(best[0])); xh.setAttribute('x2', g.X(best[0]));
+  const ch = (best[1] / p.entry - 1) * 100, el = document.getElementById('rd-' + Math.abs(hashS(posKey(p))));
+  if (el) el.innerHTML = `${new Date(best[0] * 1000).toLocaleTimeString('en-US', {hour: 'numeric', minute: '2-digit', timeZone: 'America/Chicago'})} CT · ${px(best[1])} · <span class="${ch >= 0 ? 'green' : 'red'}">${pct(ch, 1)} vs entrada</span>`;
+}
+['pointerdown', 'pointermove'].forEach(ev => document.addEventListener(ev, e => {
+  const svg = e.target.closest && e.target.closest('svg.bigc');
+  if (svg && (ev === 'pointerdown' || e.buttons || e.pointerType === 'touch' || e.pointerType === 'mouse')) chartRead(svg, e.clientX);
+}, {passive: true}));
 function renderBook() {
   const b = S.state && S.state.book, el = $('#bookList'), top = $('#allBooks');
   if (!el || !top) return;

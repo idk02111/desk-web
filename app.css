@@ -215,3 +215,26 @@ body.offline .errrow{display:block}
 .allbooks .ab-s{font-size:13px;color:var(--sec);margin-top:2px}
 .row .src{font-size:12px;color:var(--sec);background:var(--c2);border-radius:6px;padding:1px 6px;margin-left:4px;vertical-align:1px}
 .bookf{margin-bottom:8px}
+
+/* paper position rows: sparkline + tap-to-expand price chart */
+.prow + .prow{border-top:.5px solid var(--sep)}
+.prow .row{cursor:pointer}
+.prow.on .row{background:var(--c2)}
+.spark{width:64px;height:26px;flex:none}
+.spark .ln,.bigc .ln{fill:none;stroke-width:1.6;stroke-linejoin:round;stroke-linecap:round}
+.bigc .ln{stroke-width:2.2}
+.ln.up{stroke:var(--green)}.ln.dn{stroke:var(--red)}
+.spark .ent{stroke:var(--ter);stroke-width:.8;stroke-dasharray:2 2}
+.ppanel{padding:4px 14px 14px;background:var(--c2)}
+.pp-h{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap;margin:2px 0 6px}
+.pp-pnl{font:600 20px var(--display-font)}
+.trend{font-size:15px;font-weight:600}.trend small{font-weight:400;color:var(--sec)}
+.bigc{width:100%;height:auto;display:block;touch-action:pan-y;background:var(--c1);border-radius:10px}
+.bigc .lv{stroke-width:1;stroke-dasharray:4 3}.bigc .lv.ent{stroke:var(--sec)}.bigc .lv.stp{stroke:var(--red)}.bigc .lv.trl{stroke:var(--orange)}
+.bigc .lt{font:10px var(--text-font);fill:var(--sec)}.bigc .lt.stp{fill:var(--red)}.bigc .lt.trl{fill:var(--orange)}
+.bigc .mk.ent{fill:var(--sec)}.bigc .mk.up{fill:var(--green)}.bigc .mk.dn{fill:var(--red)}
+.bigc .xh{stroke:var(--text);stroke-width:.8;opacity:.6}
+.pp-read{font-size:13px;color:var(--sec);margin:6px 0;min-height:17px}
+.pp-l{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:14px;color:var(--sec)}.pp-l b{color:var(--text);font-weight:600}
+.pp-f{display:flex;justify-content:space-between;align-items:center;margin-top:10px;font-size:12px;gap:8px}
+.pp-btn{background:var(--blue);color:#fff;border-radius:16px;padding:8px 14px;font-size:14px;text-decoration:none;white-space:nowrap;min-height:34px;display:inline-flex;align-items:center}
