@@ -242,3 +242,9 @@ body.offline .errrow{display:block}
 .src.tag-scanner{background:rgba(10,132,255,.18);color:#5eb0ff}
 .src.tag-both{background:rgba(48,209,88,.18);color:#4cd964}
 .pp-why{margin:2px 0 10px}.pp-why ul{margin:4px 0 0;padding-left:18px}.pp-why li{font-size:13px;line-height:1.45;color:var(--fg,#e5e5e7)}
+
+/* 2026-11-03: the source chip never gets cut off - the coin name shrinks (ellipsis) instead */
+.row .t.tw{display:flex;align-items:center;min-width:0}
+.row .t.tw .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.row .t.tw .src{flex:none;white-space:nowrap}
+.ab-s.review{margin-top:6px;line-height:1.45}

@@ -305,7 +305,7 @@ function bookRow(p) {
   const prices = `${px(p.entry)} → ${px(p.price)}${p.status === 'open' ? ' now' : ''}`;
   const k = posKey(p), on = S.posK === k;
   const inner = `<span class="ic" style="background:${ic[0]};color:${ic[1]}">${ic[2]}</span>
-    <span class="mid"><div class="t">${esc(p.name)} <span class="src tag-${esc((p.tag || '').split(':')[0])}">${esc(tagText(p))}</span></div><div class="s">${esc(prices)}</div><div class="s">${esc(when)}${has(p.sizeUsd) ? ' · ' + money(p.sizeUsd) : ''}</div></span>
+    <span class="mid"><div class="t tw"><span class="nm">${esc(p.name)}</span><span class="src tag-${esc((p.tag || '').split(':')[0])}">${esc(tagText(p))}</span></div><div class="s">${esc(prices)}</div><div class="s">${esc(when)}${has(p.sizeUsd) ? ' · ' + money(p.sizeUsd) : ''}</div></span>
     ${sparkSVG(p)}<span class="v ${col}"><span class="v1">${money(p.pnlUsd, true)}</span><span class="v2 ${col}">${pct(p.pnlPct, 1)}</span></span>`;
   return `<div class="prow${on ? ' on' : ''}"><div class="row" role="button" tabindex="0" data-act="pos" data-k="${esc(k)}">${inner}</div>${on ? posPanel(p) : ''}</div>`;
 }
@@ -324,6 +324,14 @@ function chartRead(svg, clientX) {
   const svg = e.target.closest && e.target.closest('svg.bigc');
   if (svg && (ev === 'pointerdown' || e.buttons || e.pointerType === 'touch' || e.pointerType === 'mouse')) chartRead(svg, e.clientX);
 }, {passive: true}));
+function reviewHtml(r) {
+  // daily self-review (desk report.self_review): closed PAPER trades in the last 24h, by source; settings the bot changed
+  if (!r || r.error || !r.last) return '';
+  const line = (k, x) => x && x.n ? `${esc(k)}: ${x.n} · ${x.winPct}% win · avg ${x.avgPct == null ? '—' : (x.avgPct > 0 ? '+' : '') + x.avgPct + '%'}` : '';
+  const by = Object.entries(r.bySource || {}).map(([k, x]) => line(k, x)).filter(Boolean).join('<br>');
+  const ch = (r.changes || []).map(c => `${esc(c.key.replace(/^[a-z]+\./, ''))} ${esc(c.old)}→${esc(c.new)}`).join(', ');
+  return `<div class="ab-s review"><b>Self-review · last ${r.hours}h</b> · ${r.last.n ? line('all', r.last) + ` (${money(r.last.pnlUsd, true)})` : 'no closed trades'}${by ? '<br>' + by : ''}${ch ? '<br>Changed: ' + ch : ''}</div>`;
+}
 function renderBook() {
   const b = S.state && S.state.book, el = $('#bookList'), top = $('#allBooks');
   if (!el || !top) return;
@@ -331,7 +339,7 @@ function renderBook() {
   const t = b.total, bk = b.books, f = S.bookF || 'all';
   const part = k => bk[k] ? `${esc(bk[k].name)} ${money(bk[k].balance)} <span class="${bk[k].pnl >= 0 ? 'green' : 'red'}">(${money(bk[k].pnl, true)})</span>${bk[k].stale ? ' <span class="orange">stale</span>' : ''}` : '';
   top.innerHTML = `<div class="ab-t">All paper books <b>${money(t.balance)}</b> <span class="${t.pnl >= 0 ? 'green' : 'red'}">${money(t.pnl, true)} · ${pct(t.pnlPct)}</span></div>
-    <div class="ab-s">${['desk', 'copybot'].map(part).filter(Boolean).join(' · ')} · start ${money(t.start)}</div>`;
+    <div class="ab-s">${['desk', 'copybot'].map(part).filter(Boolean).join(' · ')} · start ${money(t.start)}</div>${reviewHtml(S.state.review)}`;
   $$('#bookF button').forEach(x => x.classList.toggle('on', x.dataset.f === f));
   const rows = (b.positions || []).filter(p => f === 'all' || p.status === f);
   const nOpen = (b.positions || []).filter(p => p.status === 'open').length;
