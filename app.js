@@ -302,7 +302,7 @@ function bookRow(p) {
   const up = has(p.pnlUsd) && p.pnlUsd >= 0, col = !has(p.pnlUsd) ? '' : up ? 'green' : 'red';
   const ic = p.status === 'open' ? ['var(--blue)', '#fff', '•'] : up ? ['var(--green)', '#000', '$'] : ['var(--red)', '#000', '↓'];
   const when = p.status === 'open' ? 'open since ' + ct(p.openedAt) : (WHY[p.reason] || p.reason || 'closed') + ' · ' + ct(p.closedAt);
-  const prices = `${px(p.entry)} → ${px(p.price)}${p.status === 'open' ? ' now' : ''}`;
+  const prices = `${px(p.entry)} → ${px(p.price)}${p.status === 'open' ? (p.stalePrice ? ' (old price)' : ' now') : ''}`;
   const k = posKey(p), on = S.posK === k;
   const inner = `<span class="ic" style="background:${ic[0]};color:${ic[1]}">${ic[2]}</span>
     <span class="mid"><div class="t tw"><span class="nm">${esc(p.name)}</span><span class="src tag-${esc((p.tag || '').split(':')[0])}">${esc(tagText(p))}</span></div><div class="s">${esc(prices)}</div><div class="s">${esc(when)}${has(p.sizeUsd) ? ' · ' + money(p.sizeUsd) : ''}</div></span>
